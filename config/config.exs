@@ -16,7 +16,7 @@ config :stage3_queue, Stage3QueueWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: Stage3QueueWeb.ErrorHTML, json: Stage3QueueWeb.ErrorJSON],
+    formats: [json: Stage3QueueWeb.ErrorJSON],
     layout: false
   ],
   pubsub_server: Stage3Queue.PubSub

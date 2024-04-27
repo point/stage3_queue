@@ -19,7 +19,7 @@ config :stage3_queue, Stage3QueueWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4000],
   check_origin: false,
   code_reloader: false,
-  debug_errors: true,
+  debug_errors: false,
   secret_key_base: "qtiyEYoWfr+UAH/vn1lUdwmMjbc/L9W3elr0Po/w2JJTPlUCESSDyVa/0iXKTqKr",
   watchers: []
 
