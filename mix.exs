@@ -5,7 +5,7 @@ defmodule Stage3Queue.MixProject do
     [
       app: :stage3_queue,
       version: "0.1.0",
-      elixir: "~> 1.16",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
