@@ -5,7 +5,7 @@ defmodule Stage3Queue.MixProject do
     [
       app: :stage3_queue,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -46,7 +46,7 @@ defmodule Stage3Queue.MixProject do
       # {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
       {:uuid, "~> 1.1"},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 

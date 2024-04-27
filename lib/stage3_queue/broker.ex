@@ -1,13 +1,14 @@
 defmodule Stage3Queue.Broker do
   alias Stage3Queue.Queue
 
-  @spec enqueue(atom(), String.t(), list(), priority: non_neg_integer()) :: {:ok, String.t()}
+  @spec enqueue(atom(), String.t(), list(), priority: non_neg_integer()) ::
+          {:ok, String.t()} | {:error, String.t()}
   def enqueue(topic, function_name, args, opts \\ []) do
-    {:ok, _task_id} = Queue.enqueue(topic, function_name, args, opts)
+    Queue.enqueue(topic, function_name, args, opts)
   end
 
   @spec status(String.t()) :: :queued | :running | :in_dead_letter_queue | :finished
-  def status(id) do
+  def status(id) when is_bitstring(id) do
     cond do
       queued?(id) -> :queued
       running?(id) -> :running

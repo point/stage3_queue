@@ -3,15 +3,15 @@ defmodule Stage3Queue.Queue do
 
   alias Stage3Queue.Queue.State
   alias Stage3Queue.Queue.Task
-  alias Stage3Queue.Dispatcher
   alias Stage3Queue.Persistence
   require Logger
 
-  @max_concurrency 1
+  @max_concurrency 10
   @max_queue_len 200
   @max_restarts 5
   @max_backoff 10_000
   @persistent true
+  @dispatcher_module Stage3Queue.Dispatcher
 
   @dialyzer {:nowarn_function, handle_info: 2}
   @type start_option() ::
@@ -52,10 +52,10 @@ defmodule Stage3Queue.Queue do
   @spec in_dlq?(pid(), String.t()) :: boolean()
   def in_dlq?(pid, task_id), do: GenServer.call(pid, {:in_dlq, task_id})
 
-  @spec register_and_dispatch(String.t(), list()) :: any()
-  def register_and_dispatch(id, args) do
+  @spec register_and_dispatch(String.t(), module(), list()) :: any()
+  def register_and_dispatch(id, mod, args) do
     Registry.register_name({Stage3Queue.QueueRegistry, id}, self())
-    apply(Dispatcher, :dispatch, args)
+    apply(mod, :dispatch, args)
   end
 
   @impl true
@@ -67,6 +67,7 @@ defmodule Stage3Queue.Queue do
     params =
       Keyword.merge(
         [
+          dispatcher_module: Keyword.get(params, :dispatcher_module, @dispatcher_module),
           max_concurrency: Keyword.get(params, :max_concurrency, @max_concurrency),
           max_queue_len: Keyword.get(params, :max_concurrency, @max_queue_len),
           max_restarts: Keyword.get(params, :max_restarts, @max_restarts),
@@ -189,12 +190,17 @@ defmodule Stage3Queue.Queue do
       tasks_to_take
       |> Enum.map(fn %Task{id: id, function_name: function_name, args: args} = task ->
         {pid, ref} =
-          spawn_monitor(__MODULE__, :register_and_dispatch, [id, [function_name | args]])
+          spawn_monitor(__MODULE__, :register_and_dispatch, [
+            id,
+            state.dispatcher_module,
+            [function_name | args]
+          ])
 
+        task = %{task | pid: pid, ref: ref, run_count: task.run_count + 1}
         if state.persistent, do: Persistence.update(task, %{status: "running"})
 
         Logger.info("Running task id #{id}", pid: pid, ref: ref)
-        %{task | pid: pid, ref: ref, run_count: task.run_count + 1}
+        task
       end)
 
     task_queue = Enum.into(task_queue_as_list, %{})
@@ -372,7 +378,7 @@ defmodule Stage3Queue.Queue do
   defp backoff(t, 0), do: t
 
   defp backoff(%Task{} = task, max_backoff) do
-    interval = min(Integer.pow(2, task.run_count) * 1000 + Enum.random(1..1000), max_backoff)
+    interval = min(Integer.pow(2, task.run_count) * 1000 + Enum.random(1..100), max_backoff)
     Process.send_after(self(), :run_queue, interval)
     %{task | start_at: System.monotonic_time(:millisecond) + interval}
   end
