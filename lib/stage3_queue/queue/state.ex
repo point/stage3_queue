@@ -1,6 +1,17 @@
 defmodule Stage3Queue.Queue.State do
   alias __MODULE__
 
+  @type t() :: %State{
+    topic: atom(),
+    max_concurrency: non_neg_integer(),
+    max_queue_len: non_neg_integer(),
+    task_queue: %{non_neg_integer() => list(Stage3Queue.Queue.Task.t())},
+    run_queue: list(Stage3Queue.Queue.Task.t()),
+    max_restarts: non_neg_integer(),
+    dead_letter_queue: list(Stage3Queue.Queue.Task.t()),
+    max_backoff: non_neg_integer(),
+    persistent: boolean()
+  }
   @enforce_keys [
     :topic,
     :max_concurrency,
@@ -24,6 +35,7 @@ defmodule Stage3Queue.Queue.State do
     :persistent
   ]
 
+  @spec new(atom(), Keyword.t()) :: State.t()
   def new(topic, params \\ []) do
     %State{
       topic: topic,

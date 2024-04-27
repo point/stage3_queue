@@ -13,11 +13,26 @@ defmodule Stage3Queue.Queue do
   @max_backoff 10_000
   @persistent true
 
+  @dialyzer {:nowarn_function, handle_info: 2}
+  @type start_option() ::
+          {:topic, atom}
+          | {:max_concurrency, non_neg_integer()}
+          | {:max_queue_len, non_neg_integer()}
+          | {:task_queue, %{non_neg_integer() => list(Stage3Queue.Queue.Task.t())}}
+          | {:run_queue, list(Stage3Queue.Queue.Task.t())}
+          | {:max_restarts, non_neg_integer()}
+          | {:dead_letter_queue, list(Stage3Queue.Queue.Task.t())}
+          | {:max_backoff, non_neg_integer()}
+          | {:persistent, boolean()}
+  @type start_options() :: [start_option()]
+
+  @spec start_link(start_options()) :: GenServer.on_start()
   def start_link(params) do
     topic = Keyword.fetch!(params, :topic)
     GenServer.start_link(__MODULE__, params, name: queue_name(topic))
   end
 
+  @spec enqueue(atom(), String.t(), list(), priority: non_neg_integer()) :: {:ok, String.t()}
   def enqueue(topic, function_name, args, opts \\ []) do
     with priority when priority in 1..10 <- Keyword.get(opts, :priority, 10),
          {:ok, pid} <- find_queue(topic) do
@@ -28,11 +43,20 @@ defmodule Stage3Queue.Queue do
     end
   end
 
+  @spec dequeue(pid(), String.t()) :: boolean()
   def dequeue(pid, task_id), do: GenServer.call(pid, {:dequeue, task_id})
 
+  @spec in_queue?(pid(), String.t()) :: boolean()
   def in_queue?(pid, task_id), do: GenServer.call(pid, {:in_queue?, task_id})
 
+  @spec in_dlq?(pid(), String.t()) :: boolean()
   def in_dlq?(pid, task_id), do: GenServer.call(pid, {:in_dlq, task_id})
+
+  @spec register_and_dispatch(String.t(), list()) :: any()
+  def register_and_dispatch(id, args) do
+    Registry.register_name({Stage3Queue.QueueRegistry, id}, self())
+    apply(Dispatcher, :dispatch, args)
+  end
 
   @impl true
   def init(params) do
@@ -57,11 +81,6 @@ defmodule Stage3Queue.Queue do
 
     Logger.info("Queue with topic #{inspect(topic)} started")
     {:ok, state, {:continue, :init}}
-  end
-
-  def register_and_dispatch(id, args) do
-    Registry.register_name({Stage3Queue.QueueRegistry, id}, self())
-    apply(Dispatcher, :dispatch, args)
   end
 
   @impl true
@@ -122,8 +141,8 @@ defmodule Stage3Queue.Queue do
         {entry, found}
     end)
     |> case do
-      {_, nil} -> {:reply, :notfound, state}
-      {tasks_as_list, _} -> {:reply, :ok, %{state | task_queue: Enum.into(tasks_as_list, %{})}}
+      {_, nil} -> {:reply, false, state}
+      {tasks_as_list, _} -> {:reply, true, %{state | task_queue: Enum.into(tasks_as_list, %{})}}
     end
   end
 
@@ -260,7 +279,7 @@ defmodule Stage3Queue.Queue do
         %{state | run_queue: run_queue, task_queue: task_queue}
       else
         false ->
-          move_to_dlq(state, %{task | fail_reasons: [fail_reason | task.fail_reasons]})
+          _state = move_to_dlq(state, %{task | fail_reasons: [fail_reason | task.fail_reasons]})
 
         _ ->
           %{state | run_queue: Enum.reject(state.run_queue, &(&1.id == task.id))}
@@ -296,9 +315,11 @@ defmodule Stage3Queue.Queue do
     :ok
   end
 
+  @spec queue_name(atom()) :: tuple()
   def queue_name(topic),
     do: {:via, Registry, {Stage3Queue.QueueRegistry, make_queue_name(topic)}}
 
+  @spec find_queue(atom()) :: {:ok, pid()} | {:error, String.t()}
   def find_queue(topic) do
     topic = make_queue_name(topic)
 
@@ -311,8 +332,10 @@ defmodule Stage3Queue.Queue do
     end
   end
 
+  @spec make_queue_name(atom()) :: String.t()
   defp make_queue_name(topic), do: "queue_#{topic}"
 
+  @spec move_to_dlq(State.t(), Task.t()) :: State.t()
   defp move_to_dlq(state, %Task{} = task) do
     Logger.warning("Task id #{task.id} reached max_restarts. Moving to dead letter queue")
 
@@ -323,6 +346,7 @@ defmodule Stage3Queue.Queue do
     %{state | run_queue: run_queue, dead_letter_queue: dlq}
   end
 
+  @spec choose_tasks([Task.t()], non_neg_integer()) :: {list(Task.t()), list(Task.t())}
   def choose_tasks(tasks, how_many) do
     current_time = System.monotonic_time(:millisecond)
 
@@ -344,6 +368,7 @@ defmodule Stage3Queue.Queue do
     |> then(fn {l1, l2} -> {Enum.reverse(l1), Enum.reverse(l2)} end)
   end
 
+  @spec backoff(Task.t(), non_neg_integer()) :: Task.t()
   defp backoff(t, 0), do: t
 
   defp backoff(%Task{} = task, max_backoff) do
