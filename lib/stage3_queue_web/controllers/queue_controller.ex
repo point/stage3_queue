@@ -2,8 +2,6 @@ defmodule Stage3QueueWeb.QueueController do
   use Stage3QueueWeb, :controller
   alias Stage3Queue.Broker
 
-  # action_fallback Stage3QueueWeb.QueueFallbackController
-
   def create(conn, %{"topic" => topic, "function" => function, "args" => args} = params) do
     opts =
       case Map.fetch(params, "priority") do
@@ -23,7 +21,9 @@ defmodule Stage3QueueWeb.QueueController do
         render(conn, :create, %{status: :ok, id: id})
       end
     else
-      render(conn, :create, %{status: :error, message: "Topic is not found"})
+      conn
+      |> put_status(:bad_request)
+      |> json(%{status: :error, message: "Topic is not found"})
     end
   end
 

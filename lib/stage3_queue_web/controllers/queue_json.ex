@@ -3,10 +3,6 @@ defmodule Stage3QueueWeb.QueueJSON do
     %{id: id, status: "ok"}
   end
 
-  def create(%{status: :error, message: message}) do
-    %{status: "error", message: message}
-  end
-
   def status(%{status: status}) do
     %{status: status}
   end

@@ -18,7 +18,7 @@ defmodule Stage3Queue.Application do
       # {Stage3Queue.Worker, arg},
       # Start to serve requests, typically the last entry
       {Registry, keys: :unique, name: Stage3Queue.QueueRegistry},
-      {Stage3Queue.Queue, topic: :default},
+      {Stage3Queue.Queue, topic: :default, max_concurrency: 1},
       Stage3QueueWeb.Endpoint
     ]
 
