@@ -19,20 +19,14 @@ defmodule Stage3Queue.Broker do
 
   @spec abort(String.t()) :: true | false
   def abort(id) do
-    case Registry.lookup(Stage3Queue.QueueRegistry, id) do
-      [{pid, _}] ->
-        Process.exit(pid, :kill)
+    get_all_queues()
+    |> Enum.find_value(false, fn
+      %{key: "queue_" <> _, pid: pid} ->
+        Queue.abort(pid, id)
 
       _ ->
-        get_all_queues()
-        |> Enum.find_value(false, fn
-          %{key: "queue_" <> _, pid: pid} ->
-            Queue.dequeue(pid, id)
-
-          _ ->
-            false
-        end)
-    end
+        false
+    end)
   end
 
   @spec running?(String.t()) :: boolean()

@@ -46,6 +46,9 @@ defmodule Stage3Queue.Queue do
   @spec dequeue(pid(), String.t()) :: boolean()
   def dequeue(pid, task_id), do: GenServer.call(pid, {:dequeue, task_id})
 
+  @spec abort(pid(), String.t()) :: boolean()
+  def abort(pid, task_id), do: GenServer.call(pid, {:abort, task_id})
+
   @spec in_queue?(pid(), String.t()) :: boolean()
   def in_queue?(pid, task_id), do: GenServer.call(pid, {:in_queue?, task_id})
 
@@ -125,25 +128,29 @@ defmodule Stage3Queue.Queue do
     {:reply, result, state}
   end
 
-  def handle_call({:dequeue, id}, _, state) do
-    state.task_queue
-    |> Enum.map_reduce(nil, fn
-      {p, tasks}, nil ->
-        case Enum.find(tasks, &(&1.id == id)) do
-          %Task{} = t ->
-            Logger.info("Dequeue task id #{id} from the queue #{state.topic}")
-            {{p, Enum.reject(tasks, &(&1 == t))}, t}
+  def handle_call({:abort, task_id}, _, state) do
+    case dequeue_from_task_queue(state, task_id) do
+      {_, nil} ->
+        state.run_queue
+        |> Enum.find(&(&1.id == task_id))
+        |> case do
+          %Task{pid: pid} = task ->
+            Process.exit(pid, :kill)
+            {:reply, true, %{state | run_queue: List.delete(state.run_queue, task)}}
 
           nil ->
-            {{p, tasks}, nil}
+            {:reply, false, state}
         end
 
-      {_p, _tasks} = entry, found ->
-        {entry, found}
-    end)
-    |> case do
+      {state, _} ->
+        {:reply, true, state}
+    end
+  end
+
+  def handle_call({:dequeue, task_id}, _, state) do
+    case dequeue_from_task_queue(state, task_id) do
       {_, nil} -> {:reply, false, state}
-      {tasks_as_list, _} -> {:reply, true, %{state | task_queue: Enum.into(tasks_as_list, %{})}}
+      {state, _} -> {:reply, true, state}
     end
   end
 
@@ -288,7 +295,7 @@ defmodule Stage3Queue.Queue do
           _state = move_to_dlq(state, %{task | fail_reasons: [fail_reason | task.fail_reasons]})
 
         _ ->
-          %{state | run_queue: Enum.reject(state.run_queue, &(&1.id == task.id))}
+          %{state | run_queue: Enum.reject(state.run_queue, &(&1.pid == finished_pid))}
       end
 
     {:noreply, state, {:continue, :run_queue}}
@@ -381,5 +388,27 @@ defmodule Stage3Queue.Queue do
     interval = min(Integer.pow(2, task.run_count) * 1000 + Enum.random(1..100), max_backoff)
     Process.send_after(self(), :run_queue, interval)
     %{task | start_at: System.monotonic_time(:millisecond) + interval}
+  end
+
+  @spec dequeue_from_task_queue(State.t(), String.t()) :: {State.t(), Task.t()} | {State.t(), nil}
+  defp dequeue_from_task_queue(%State{} = state, id) do
+    state.task_queue
+    |> Enum.map_reduce(nil, fn
+      {p, tasks}, nil ->
+        case Enum.find(tasks, &(&1.id == id)) do
+          %Task{} = t ->
+            {{p, Enum.reject(tasks, &(&1 == t))}, t}
+
+          nil ->
+            {{p, tasks}, nil}
+        end
+
+      {_p, _tasks} = entry, found ->
+        {entry, found}
+    end)
+    |> case do
+      {_, nil} -> {state, nil}
+      {tasks_as_list, task} -> {%{state | task_queue: Enum.into(tasks_as_list, %{})}, task}
+    end
   end
 end
