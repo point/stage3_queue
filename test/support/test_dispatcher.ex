@@ -6,6 +6,11 @@ defmodule Stage3Queue.TestDispatcher do
     Process.sleep(time)
   end
 
+  def dispatch("sleep&send", time, pid, message) do
+    Process.sleep(time)
+    send(pid, message)
+  end
+
   def dispatch("die") do
     f = fn -> "a" end
     :ok = f.()

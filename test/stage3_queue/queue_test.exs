@@ -55,9 +55,9 @@ defmodule Stage3Queue.QueueTest do
                 dispatcher_module: Stage3Queue.TestDispatcher}
              )
 
-    assert {:ok, id1} = Broker.enqueue(:basic3, "sleep", [50])
-    assert {:ok, id2} = Broker.enqueue(:basic3, "sleep", [50], priority: 5)
-    assert {:ok, id3} = Broker.enqueue(:basic3, "sleep", [50], priority: 1)
+    assert {:ok, id1} = Broker.enqueue(:basic3, "sleep&send", [50, self(), :id1])
+    assert {:ok, id2} = Broker.enqueue(:basic3, "sleep&send", [50, self(), :id2], priority: 5)
+    assert {:ok, id3} = Broker.enqueue(:basic3, "sleep&send", [50, self(), :id3], priority: 1)
     assert :running == Broker.status(id1)
     assert :queued == Broker.status(id2)
     assert :queued == Broker.status(id3)
@@ -68,7 +68,7 @@ defmodule Stage3Queue.QueueTest do
            } =
              :sys.get_state(pid)
 
-    Process.sleep(80)
+    assert_receive(:id1)
 
     assert :finished == Broker.status(id1)
     assert :queued == Broker.status(id2)
@@ -85,13 +85,13 @@ defmodule Stage3Queue.QueueTest do
                 dispatcher_module: Stage3Queue.TestDispatcher}
              )
 
-    assert {:ok, id1} = Broker.enqueue(:basic4, "sleep", [50])
-    assert {:ok, id2} = Broker.enqueue(:basic4, "sleep", [50], priority: 5)
+    assert {:ok, id1} = Broker.enqueue(:basic4, "sleep&send", [50, self(), :id1])
+    assert {:ok, id2} = Broker.enqueue(:basic4, "sleep&send", [50, self(), :id2], priority: 5)
     assert :running == Broker.status(id1)
     assert :queued == Broker.status(id2)
 
     Broker.abort(id2)
-    Process.sleep(80)
+    assert_receive(:id1)
     assert :finished == Broker.status(id2)
   end
 
@@ -200,6 +200,7 @@ defmodule Stage3Queue.QueueTest do
                 dispatcher_module: Stage3Queue.TestDispatcher}
              )
 
+    # cannot use assert_receive because pid is not JSON-able
     assert {:ok, id1} = Broker.enqueue(:pers1, "sleep&die", [])
     assert {:ok, id2} = Broker.enqueue(:pers1, "sleep&die", [])
 
