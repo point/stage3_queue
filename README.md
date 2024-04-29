@@ -150,7 +150,7 @@ settings, in isolated environment. So one crash doesn't affect other queues.
 To keep the `pid` of a queue, the Registry module is used. 
 Queue's `pid` is stored under `queue_<topic>` name and could be easily retrieved later.
 
-## Enqueue 
+#### Enqueue 
 
 The beginning of a task lifecycle is `enqueue` call. 
 Each task has:
@@ -174,7 +174,7 @@ In case of success, function return `{:ok, task_id}` tuple, where `task_id` is a
 Immediately after, Queue invokes the `:run_queue` routine.
 
 
-## Running the queue
+#### Running the queue
 
 Each queue has `max_concurrency` setting, which defines how many tasks Queue can run simultaneously.
 If the limit is reached, new tasks execution is postponed until at least one already running task is finished.
@@ -194,7 +194,7 @@ execution flow to configured dispatcher module, the `dispatch` function, where t
 If persistence is turned on (see [Settings]), a task record in DB is updated with new `running` status.
 
      
-## Task end-of-life
+#### Task end-of-life
 
 When task finishes successfully (with exit status `:normal`), Queue removes the `Task` structure out of `run_queue`, and a new round of 
 peeking up task with respect to priority is started. 
@@ -215,14 +215,14 @@ Random delay of 0..100ms is added to prevent massive simultaneous tasks restarts
 If persistence is turned on (see [Settings]), a task record in DB is updated with `failed` status.
 
 
-## Queue termination
+#### Queue termination
 When Queue process is terminated, Queue tries to `exit(:shutdown)` all running tasks. 
 If after 1s the task process is not finished, it's gonna be killed `exit(:kill)`.
 
 During the subsequent Queue restart, if persistence is turned on (see [Settings]), all scheduled tasks are loaded 
 into the `task_queue` and Queue immediately continues task processing.
      
-## Settings:
+#### Settings:
 
   * `dispatcher_module`: defines a module which holds `dispatch` function responsible for task execution and function call-forwarding.
     Default: `Stage3Queue.Dispatcher`
@@ -238,7 +238,7 @@ into the `task_queue` and Queue immediately continues task processing.
   * `persistent`: sets whether to store and track tasks in the DB or not. See [Persistence].
     Default: true
 
-## Persistence:
+#### Persistence:
 If `persistent` setting is turned on, Queue tracks each `Task` in the database. It saves `priority`, `function_name`,
 `args`, `start_at`, `run_count` and `status`. It's important to have `function_name` and values in `args` list which are JSON-encodable.
 So no tuples, atoms or pids.
