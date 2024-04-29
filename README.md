@@ -55,7 +55,7 @@ To add the task, call `Stage3Queue.Broker.enqueue`
 ```
 
 Before running, the task is always put into the internal waiting queue (default size is 200 tasks in it).
-Here. `:emails` is a queue name, `"send emails"` is a function name, `["admin@example.com", [emails]]` the list of parameters.
+Here. `:emails` is a queue name, `"send emails"` is a function name, `["admin@example.com", [email1, email2]]` the list of parameters.
 
 By default, the `Stage3Queue.Dispatcher` dispatcher module is used to dispatch and start tasks.
 For this particular case, you should define a `dispatch` function with `send emails` pattern:
@@ -72,7 +72,7 @@ More on dispatchers and priorities in [internals](#internals) section
 
 ### Checking task status
 
-To get the task status, call `Stage3Queue.Broker.enqueue`:
+To get the task status, call `Stage3Queue.Broker.status`:
 
 ```elixir
 status = Broker.status(task_id)
