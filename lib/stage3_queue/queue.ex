@@ -100,7 +100,8 @@ defmodule Stage3Queue.Queue do
       Default: true
 
   ## Persistence:
-  If `persistent` setting is turned on, Queue tracks each `Task` in the database. It saves `priority`, `function_name`,
+  If `persistent` setting is turned on, Queue tracks each `Task` in the SQLite database (so no configuration needed). 
+  It saves `priority`, `function_name`,
   `args`, `start_at`, `run_count` and `status`. It's important to have `function_name` and values in `args` list which are JSON-encodable.
   So no tuples, atoms or pids.
   When persistence is off and DB is not used, those could be any values without limits.
