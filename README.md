@@ -1,6 +1,6 @@
 # Stage3Queue - Asynchronous Task Processing System
 
-Stage3Queue designed for receiving tasks, enqueuing them, and processing those
+Stage3Queue designed for receiving tasks, enqueueing them, and processing those
 in the background asynchronously. 
 Each task can be a distinct background operation, such as sending an email, generating a report, or any CPU-bound job.
 
@@ -48,17 +48,17 @@ The high-level module `Stage3Queue.Broker` should be used to perform all the ope
 
 ### Enqueuing a task
 
-To add the task, call Stage3Queue.Broker.enqueue`
+To add the task, call `Stage3Queue.Broker.enqueue`
 
 ```elixir
 {:ok, task_id} = Broker.enqueue(:emails, "send emails", ["admin@example.com", [emails]], priority: 10)
 ```
 
 Before running, the task is always put into the internal waiting queue (default size is 200 tasks in it).
-Here. `:emails` is a queue name, `"sleep"` is a function name, `[50]` the list of parameters.
+Here. `:emails` is a queue name, `"send emails"` is a function name, `["admin@example.com", [emails]]` the list of parameters.
 
 By default, the `Stage3Queue.Dispatcher` dispatcher module is used to dispatch and start tasks.
-For this particular case, you should define a `dispatch` function with `sleep` pattern:
+For this particular case, you should define a `dispatch` function with `send emails` pattern:
 
 ```elixir
 defmodule Stage3Queue.Dispatcher do
@@ -79,7 +79,7 @@ status = Broker.status(task_id)
 ```
 
 Possible statuses are:
-  * `:queued` if task is still in a queue waiting to be started
+  * `:queued` if the task is still in a queue waiting to be started
   * `:running` if it's running
   * `:in_dead_letter_queue` if task run but failed constantly, even after retries
   * `:finished` if finished correctly
